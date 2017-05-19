@@ -2,6 +2,125 @@
 
 namespace func {
 
+Summation::Summation (const Summation &obj) {
+    terms = obj.terms;
+}
+
+Summation::Summation (
+        const std::vector<std::shared_ptr<FunctionUnit> > &funits) {
+    terms = funits;
+}
+
+void Summation::init (
+        const std::vector<std::shared_ptr<FunctionUnit> > &funits) {
+    terms = funits;
+}
+
+double Summation::call (double x) const {
+
+    double value = 0;
+
+    for (auto itr = terms.begin(); itr != terms.end(); ++itr) {
+        value += (*itr)->call(x);
+    }
+
+    return value;
+}
+
+std::shared_ptr<FunctionUnit> Summation::differential () const {
+
+    std::vector<std::shared_ptr<FunctionUnit> > dterms;
+    std::shared_ptr<FunctionUnit> term;
+    Zero zero;
+
+    for (auto itr = terms.begin(); itr != terms.end(); ++itr) {
+        term = (*itr)->differential();
+        if (!zero.equal(*term)) {
+            dterms.push_back((*itr)->differential());
+        }
+    }
+
+    return std::make_shared<Summation>(dterms);
+}
+
+std::shared_ptr<FunctionUnit> Summation::clone () const {
+    return std::make_shared<Summation>(terms);
+}
+
+std::string Summation::toString () const {
+
+    std::string str = terms[0]->toString();
+
+    for (auto itr = terms.begin() + 1; itr != terms.end(); ++itr) {
+        str += " + ";
+        str += (*itr)->toString();
+    }
+
+    return str;
+}
+
+Product::Product (const Product &obj) {
+    terms = obj.terms;
+}
+
+Product::Product (const std::vector<std::shared_ptr<FunctionUnit> > &obj) {
+
+    for (auto itr = obj.begin(); itr != obj.end(); ++itr) {
+        concat(**itr);
+        if (isZero) {
+            terms.clear();
+            terms.push_back(std::make_shared<Zero>());
+            break;
+        }
+    }
+
+}
+
+void Product::concat (const FunctionUnit &obj) {
+    terms.push_back(obj.clone());
+}
+
+void Product::concat (const Zero &obj) {
+    (void)obj;
+    isZero = true;
+}
+
+void Product::concat (const Base &obj) {
+    (void)obj;
+}
+
+void Product::concat (const Product &obj) {
+    for (auto itr = obj.terms.begin(); itr != obj.terms.end(); ++itr) {
+        terms.push_back((*itr)->clone());
+    }
+}
+
+void Product::init (const std::vector<std::shared_ptr<FunctionUnit> > &obj) {
+
+    terms.clear();
+    isZero = false;
+
+    for (auto itr = obj.begin(); itr != obj.end(); ++itr) {
+        concat(**itr);
+        if (isZero) {
+            terms.clear();
+            terms.push_back(std::make_shared<Zero>());
+            break;
+        }
+    }
+
+}
+
+double Product::call (double x) const {
+
+    double value = 1.0;
+    for (auto itr = terms.begin(); itr != terms.end(); ++itr) {
+        value *= (*itr)->call(x);
+    }
+
+    return value;
+}
+
 Polynominal::Polynominal (
         const std::vector<double> &coefficient, const FunctionUnit &funit) {
 
@@ -35,18 +154,48 @@ double Polynominal::call (double x) const {
     return value;
 }
 
+std::shared_ptr<FunctionUnit> Product::differential () const {
+    int size = static_cast<int>(terms.size());
+    std::vector<std::shared_ptr<FunctionUnit> > buffer;
+    std::vector<std::shared_ptr<FunctionUnit> > dterms;
+
+    for (int i = 0; i < size; ++i) {
+        buffer = terms;
+        buffer.erase(buffer.begin() + i);
+        buffer.push_back(terms[i]->differential()->clone());
+        dterms.push_back(std::make_shared<Product>(buffer));
+    }
+
+    return std::make_shared<Summation>(dterms);
+}
+
+std::shared_ptr<FunctionUnit> Product::clone () const {
+    return std::make_shared<Product>(terms);
+}
+
+std::string Product::toString () const {
+    std::string str = "";
+    for (auto itr = terms.begin(); itr != terms.end(); ++itr) {
+        str += "(" + (*itr)->toString() + ")";
+    }
+    return str;
+}
+
 std::shared_ptr<FunctionUnit> Polynominal::differential () const {
 
     std::vector<double> dcoef;
     int size = static_cast<int>(coef.size());
     std::shared_ptr<FunctionUnit> dnest = nest->differential();
 
-    // TODO implement synthetic derivative
     for (int i = 1; i < size; ++i) {
         dcoef.push_back(coef[i] * i);
     }
 
-    return std::make_shared<Polynominal>(dcoef, *nest);
+    std::vector<std::shared_ptr<FunctionUnit> > terms;
+    terms.push_back(std::make_shared<Polynominal>(dcoef, *nest));
+    terms.push_back(nest->differential());
+
+    return std::make_shared<Product>(terms);
 }
 
 std::shared_ptr<FunctionUnit> Polynominal::clone () const {
