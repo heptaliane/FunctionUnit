@@ -41,15 +41,6 @@ public:
 
     std::string toString () const { return ""; }
 
-    bool equal (const FunctionUnit &obj) const {
-        (void)obj;
-        return false;
-    }
-
-    bool equal (const Zero &obj) const {
-        (void)obj;
-        return true;
-    }
 };
 
 class Base : public FunctionUnit {
@@ -72,15 +63,6 @@ public:
 
     std::string toString () const { return "1"; }
 
-    bool equal (const FunctionUnit &obj) const {
-        (void)obj;
-        return false;
-    }
-
-    bool equal (const Base &obj) const {
-        (void)obj;
-        return true;
-    }
 };
 
 class Variable : public FunctionUnit {
@@ -100,15 +82,6 @@ public:
 
     std::string toString () const { return "x"; }
 
-    bool equal (const Variable &obj) const {
-        (void)obj;
-        return true;
-    }
-
-    bool equal (const FunctionUnit &obj) const {
-        (void)obj;
-        return false;
-    }
 };
 
 class Summation : public FunctionUnit {
@@ -157,17 +130,8 @@ public:
 
 private:
 
-    bool isZero = false;
-
     std::vector<std::shared_ptr<FunctionUnit> > terms;
 
-    void concat (const FunctionUnit &obj);
-
-    void concat (const Zero &obj);
-
-    void concat (const Base &obj);
-
-    void concat (const Product &obj);
 };
 
 class Polynominal : public FunctionUnit {

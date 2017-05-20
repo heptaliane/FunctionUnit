@@ -35,7 +35,7 @@ std::shared_ptr<FunctionUnit> Summation::differential () const {
 
     for (auto itr = terms.begin(); itr != terms.end(); ++itr) {
         term = (*itr)->differential();
-        if (!zero.equal(*term)) {
+        if (typeid(*term) != typeid(zero)) {
             dterms.push_back((*itr)->differential());
         }
     }
@@ -64,51 +64,32 @@ Product::Product (const Product &obj) {
 }
 
 Product::Product (const std::vector<std::shared_ptr<FunctionUnit> > &obj) {
-
-    for (auto itr = obj.begin(); itr != obj.end(); ++itr) {
-        concat(**itr);
-        if (isZero) {
-            terms.clear();
-            terms.push_back(std::make_shared<Zero>());
-            break;
-        }
-    }
-
-}
-
-void Product::concat (const FunctionUnit &obj) {
-    terms.push_back(obj.clone());
-}
-
-void Product::concat (const Zero &obj) {
-    (void)obj;
-    isZero = true;
-}
-
-void Product::concat (const Base &obj) {
-    (void)obj;
-}
-
-void Product::concat (const Product &obj) {
-    for (auto itr = obj.terms.begin(); itr != obj.terms.end(); ++itr) {
-        terms.push_back((*itr)->clone());
-    }
+    init(obj);
 }
 
 void Product::init (const std::vector<std::shared_ptr<FunctionUnit> > &obj) {
 
     terms.clear();
-    isZero = false;
 
     for (auto itr = obj.begin(); itr != obj.end(); ++itr) {
-        concat(**itr);
-        if (isZero) {
+        if (Zero* f = dynamic_cast<Zero*>(&(**itr))) {
             terms.clear();
-            terms.push_back(std::make_shared<Zero>());
+            terms.push_back(f->clone());
             break;
+
+        } else if (Base* f = dynamic_cast<Base*>(&(**itr))) {
+            (void)f;
+            continue;
+
+        } else if (Product* f = dynamic_cast<Product*>(&(**itr))) {
+            for (auto ttr = f->terms.begin(); ttr != f->terms.end(); ++ttr) {
+                terms.push_back((*ttr)->clone());
+            }
+
+        } else {
+            terms.push_back((*itr)->clone());
         }
     }
-
 }
 
 double Product::call (double x) const {
